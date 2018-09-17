@@ -1,42 +1,40 @@
+from typing import List, Dict, Union
+
+from utils.database_connection import DatabaseConnection
 # Concerned with storing and retreiving books from a list
 
-books_file = 'books.txt'
+Book = Dict[str, Union[str, int]]
 
 
 def create_book_table():
-    with open(books_file, "w+") as file:
-        pass
+    with DatabaseConnection('data.db') as connection:
+        cursor = connection.cursor()
+        cursor.execute('CREATE TABLE IF NOT EXISTS books(title text primary key, author text, read integer)')
 
 
-def get_all_books():
+def get_all_books() -> List[Book]:
     # load the list of books
-    with open(books_file, "r+") as file:
-        lines = [line.strip().split(',') for line in file.readlines()]
-    return [{'title': line[0], 'author': line[1], 'read': line[2]} for line in lines]
+    with DatabaseConnection('data.db') as connection:
+        cursor = connection.cursor()
+
+        cursor.execute('SELECT title, author, read FROM books')
+        books = [{'title': row[0], 'author': row[1], 'read': row[2]} for row in cursor.fetchall()]
+    return books
 
 
-def add_book(title, author):
-    with open(books_file, 'a+') as file:
-        file.writelines(f"{title}, {author}, 0\n")
-    # books.append({'name': title, 'author': author,'read': False})
+def add_book(title: str, author: str) -> None:
+    with DatabaseConnection('data.db') as connection:
+        cursor = connection.cursor()
+        cursor.execute('INSERT INTO books VALUES(?, ?, 0)', (title, author))
 
 
-def _save_all_books(books):
-    with open(books_file, 'w+') as file:
-        for book in books:
-            file.write(f"{book['title']}, {book['author']}, {book['read']}\n")
+def mark_as_read(title: str) -> None:
+    with DatabaseConnection('data.db') as connection:
+        cursor = connection.cursor()
+        cursor.execute('UPDATE books SET read=1 WHERE title=?', (title,))
 
 
-def mark_as_read(title):
-    books = get_all_books()
-    for book in books:
-        if book['title'] == title:
-            book['read'] = '1'
-    _save_all_books(books)
-    # {book['read']: True for book in books if book['name'] == title}
-
-
-def delete_book(title):
-    books = get_all_books()
-    books = [book for book in books if book['title'] != title]
-    _save_all_books(books)
+def delete_book(title: str) -> None:
+    with DatabaseConnection('data.db') as connection:
+        cursor = connection.cursor()
+        cursor.execute('DELETE FROM books WHERE title=?', (title,))
